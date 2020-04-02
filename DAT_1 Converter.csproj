@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <RootNamespace>DAT_1_Converter</RootNamespace>
+    <StartupObject>DAT_1_Converter.Program</StartupObject>
+    <ApplicationIcon>favicon.ico</ApplicationIcon>
+    <Authors>Pau Garcia Chiner</Authors>
+    <Company>Calm Games</Company>
+    <Description>Convierte archivos .DAT_1 a .CSV para poder leerlos mas comodamente entre otros usos</Description>
+  </PropertyGroup>
+
+</Project>
