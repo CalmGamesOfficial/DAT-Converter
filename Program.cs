@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿//DAT1 Converter (Version 1.1) by Calm Games for more information https://github.com/CalmGamesOfficial
+using System.Threading.Tasks;
 using System.Globalization;
 using System.Threading;
 using System.Text;
@@ -23,7 +24,6 @@ namespace DAT_1_Converter
         //Variables Estaticas de procesamiento de arrays de alto nivel
         public static int fileCount;
         public static string[] outputFileName;
-        public static int parallelProcessCycles = 1000;
 
         static void Main(string[] args)
         {
@@ -113,10 +113,8 @@ namespace DAT_1_Converter
                 file = strings.AddSeparators(file);                        //<- Añade separadores para no romper el espaciado del archivo
                 file = strings.DeleteStartCharacter(file);                 //<- Elimina el caracter inicial
                 fileElements = strings.SplitFileLines(file);               //<- Divide el archivo en distintas partes para trabajar con el
-                fileElements = strings.ExponentialToDecimal(fileElements); //<- Cambiar Exponenciales a decimales
-                Console.WriteLine("Conversion decimal completada\n");
 
-                //Crear el archivo csv y copiar los datos
+                //Guarda el nombre del archivo
                 outputFileName = fileName.Split('.');
                 string result = String.Empty;
                 
@@ -146,7 +144,7 @@ namespace DAT_1_Converter
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("Conversion completa en " + time.Hours.ToString("00") + ":" + time.Minutes.ToString("00") + ":" + time.Seconds.ToString("00") + ", csv guardado en '" + outputPath + "'\n");
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("Pulse Intro para salir...");
+                Console.WriteLine("Pulse Enter para salir...");
                 Console.ReadKey();
                 Console.ResetColor();
             }
@@ -215,28 +213,12 @@ namespace DAT_1_Converter
                 Console.WriteLine("Dando formato a la informacion: " + MathF.Abs(i * 100 / fileElements.Length) + "%");
                 Console.Title = "DAT_1 CONVERTER - " + fileName + ": " + MathF.Abs(i * 100 / fileElements.Length) + "%";
 
-                result[i] = ArrayToStringSingleOperation(file[i]);
+                result[i] = ArrayToStringSingleOperation(file[i], i);
             }
             Console.WriteLine("Formato completado\n");
 
             //Quitar el porcentaje del titulo mostrado anteriormente
             Console.Title = "DAT_1 CONVERTER - " + fileName;
-
-            //Elimina la separacion ascii que tiene el tag
-            int e = 0;
-            Parallel.For(1, result.Length - 1, i =>
-            {
-               Console.WriteLine("Finalizando archivo: " + MathF.Abs((e * 100 / result.Length)) + "%");
-
-               char emptyChar = (char)0;
-               string[] endLine = new string[2];
-               if (result[i].Contains(emptyChar)) endLine = result[i].Split(emptyChar);
-               
-                //Si el elemento tag esta correcto se copia a file
-               if (endLine[1] != null) result[i] = endLine[1];
-               i++;
-               e++;
-            });
 
             //Elimina las separaciones creadas anteriormente para evitar problemas con el espaciado
             string str = strings.CleanSeparators(string.Join("", result));
@@ -253,33 +235,63 @@ namespace DAT_1_Converter
             }
             Console.WriteLine("Informacion copiada correctamente\n");
         }
-        public static string ArrayToStringSingleOperation(string file)
+
+        static int e = 0;
+        public static string ArrayToStringSingleOperation(string file, int i)
         {
+            Strings strings = new Strings();
+
             char emptyChar = (char)0;
             string result = String.Empty;
 
-            if (fileCount == 0) result = result + file + ",";
-            if (fileCount == 1) result = result + file + " ";
+            if (fileCount == 0 && i != 0) {
+                if(!file.Contains(emptyChar)){
+                    Exception exp = new Exception("Error: tag expected in: " + file);
+                    throw exp;
+                }
+
+                file = file.Remove(0, 5);
+                result = file + ",";
+            }else if(fileCount == 0){result = file + ",";}
+
+
+            if (fileCount == 1) result = file + " ";
 
             //Si la hora tiene un formato distinto lo arregla
             if (fileCount == 2 && file.Length > 13)
             {
                 file = file.Substring(0, 12) + "," + file.Substring(12, file.Length - 12);
-                result = result + file + "\n";
+                result = file + "\n";
                 fileCount = -1;
             }
-            if (fileCount == 2) result = result + file + ",";
+            if (fileCount == 2) result =  file + ",";
 
             //Si el final de linea no es correcto se corrige
-            if(fileCount == 3 && file.Contains(emptyChar))
+            if(fileCount == 3 && (file.Contains(emptyChar) || file == "0" ))
             {
-                result = result + "\n" + file + ",";
+                Console.BackgroundColor = ConsoleColor.Red;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(file + " Found in line: " + i/3);
+                Console.ResetColor();
+                
+                if(!file.Contains(emptyChar)){
+                    Exception exp = new Exception("Error: tag expected in: " + file);
+                    throw exp;
+                }
+
+                Console.WriteLine(file + ": Length = " + file.Length);
+                file = file.Remove(0, 5);
+                Console.WriteLine(file);
+                
+                result = "\n" + file + ",";
                 fileCount = 0;
+                e++;
             }
             //Si es final de linea pasar a otra nueva
             else if (fileCount == 3)
             {
-                result = result + file + "\n";
+                file = strings.ExponentialToDecimal(file);
+                result = file + "\n";
                 fileCount = -1;
             }
 
@@ -316,8 +328,10 @@ namespace DAT_1_Converter
 
             return fileElements;
         }
-        public string[] ExponentialToDecimal(string[] file)
+        public string ExponentialToDecimal(string file)
         {
+            char emptyChar = (char)0;
+            
             //Forzando a usar "." como separador decimal
             string CultureName = Thread.CurrentThread.CurrentCulture.Name;
             CultureInfo ci = new CultureInfo(CultureName);
@@ -326,21 +340,15 @@ namespace DAT_1_Converter
                 ci.NumberFormat.NumberDecimalSeparator = ".";
                 Thread.CurrentThread.CurrentCulture = ci;
             }
-            //Convertir de Exponente a decimal
-            for (int i = 3; i < file.Length - 1;)
+            
+            //Comprueba si la variable a convertir es un numero
+            bool containsNumber = file.Any(char.IsDigit);
+            if (containsNumber && (!file.Contains(emptyChar) && !file.Contains(':')))
             {
-                //Percentage 
-                Console.WriteLine("Convirtiendo Exponencial a Decimal: " + MathF.Abs(i * 100 / file.Length) + "%");
-                //Comprueba si la variable a convertir es un numero
-                bool containsNumber = file[i].Any(char.IsDigit);
-                if (containsNumber)
-                {
-                    decimal result;
-                    Decimal.TryParse(file[i], NumberStyles.AllowExponent | NumberStyles.Float, ci, out result);
-                    file[i] = result.ToString();
+                decimal result;
+                Decimal.TryParse(file, NumberStyles.AllowExponent | NumberStyles.Float, ci, out result);
+                file = result.ToString();
 
-                }
-                i = i + 4;
             }
 
             return file;
@@ -424,4 +432,3 @@ namespace DAT_1_Converter
     }
 
 }
-//Creditos: Pau Garcia Chiner

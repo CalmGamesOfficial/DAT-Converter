@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <RootNamespace>DAT_1_Converter</RootNamespace>
     <StartupObject>DAT_1_Converter.Program</StartupObject>
     <ApplicationIcon>favicon.ico</ApplicationIcon>
