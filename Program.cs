@@ -1,5 +1,6 @@
-﻿//DAT1 Converter (Version 1.1) by Calm Games for more information https://github.com/CalmGamesOfficial
-using System.Threading.Tasks;
+﻿//DAT1 Converter (Version 1.2) by Calm Games for more information https://github.com/CalmGamesOfficial
+using System.Runtime.InteropServices;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Text;
@@ -11,30 +12,30 @@ namespace DAT_1_Converter
 {
     public class Program
     {
+        //SO Info (Permite desarrollar este proyecto en otra plataforma sin apenas cambiar nada)
+        public static bool isWindows = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
         //Variables estaticas
         public static string file;
         public static string[] fileElements;
+        public static string[] outputFileName;
 
+        public static int fileCount;
         public static string fileName;
         public static string filePath;
         public static string outputPath;
 
-        public static string emptyValue = string.Empty;
-
-        //Variables Estaticas de procesamiento de arrays de alto nivel
-        public static int fileCount;
-        public static string[] outputFileName;
+        public static string[] ignoreTags;
+        public static List<int> tagsToIgnore = new List<int>();
 
         static void Main(string[] args)
         {
+            //Obtener metodos de la clase strings
             Strings strings = new Strings();
 
             //Titulo
-            Console.Title = "DAT_1 CONVERTER";
-            Console.BackgroundColor = ConsoleColor.Yellow;
-            Console.ForegroundColor = ConsoleColor.Black;
-            Console.WriteLine(" DAT_1 CONVERTER                                                                                                        \n");
-            Console.ResetColor();
+            Console.Clear();
+            strings.Title();
             
             //Preguntar archivo de entrada
             Console.WriteLine("Introduzca la ruta de el archivo a convertir (Ejemplo: C:\\Users\\...\\Archivo.DAT_1):");
@@ -46,16 +47,32 @@ namespace DAT_1_Converter
             //Si no existe see inicia un bucle hasta que encuentre un archivo
             while (!File.Exists(filePath))
             {
+                strings.ClearCurrentConsoleLine(); strings.ClearCurrentConsoleLine();
+                strings.ClearCurrentConsoleLine(); strings.ClearCurrentConsoleLine();
+                
                 Console.ResetColor();
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("No se ha encontrado el archivo especificado, por favor vuelva a introducirla:");
                 Console.ForegroundColor = ConsoleColor.Yellow;
+                
                 filePath = Console.ReadLine();
                 Console.WriteLine("\n");
+                Console.ResetColor();
             }
             
             //Una vez encontrado se guarda su nombre para su posterior uso
-            string[] fileDir = filePath.Split('\\');
-            fileName = fileDir[fileDir.Length - 1];
+            string[] fileDir;
+            if (isWindows)
+            {
+                fileDir = filePath.Split('\\');
+                fileName = fileDir[fileDir.Length - 1];
+                fileName = fileName.Split('.')[0];
+            }
+            else{
+                fileDir = filePath.Split('/');
+                fileName = fileDir[fileDir.Length - 1];
+                fileName = fileName.Split('.')[0];
+            }
             
             //Preguntar ruta de salida
             Console.ResetColor();
@@ -67,11 +84,17 @@ namespace DAT_1_Converter
             //Si no existe see inicia un bucle hasta que encuentre una directorio de salida
             while (!Directory.Exists(outputPath))
             {
+                strings.ClearCurrentConsoleLine(); strings.ClearCurrentConsoleLine();
+                strings.ClearCurrentConsoleLine(); strings.ClearCurrentConsoleLine();
+                
                 Console.ResetColor();
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("No se ha encontrado la ruta especificada, por favor vuelva a introducirla:");
                 Console.ForegroundColor = ConsoleColor.Yellow;
+                
                 outputPath = Console.ReadLine();
                 Console.WriteLine("\n");
+                Console.ResetColor();
             }
 
             //Cargar archivo
@@ -81,7 +104,9 @@ namespace DAT_1_Converter
             }
             catch (IOException e)
             {
+                Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("IO Error: {0}", e.GetType().Name);
+                Console.ResetColor();
                 return;
             }
             Console.ForegroundColor = ConsoleColor.Green;
@@ -89,9 +114,31 @@ namespace DAT_1_Converter
             Console.Title = "DAT_1 CONVERTER - " + fileName;
             Console.ResetColor();
 
+            //Cargar ignoreTags
+            try
+            {
+                ignoreTags = File.ReadAllLines("IgnoreTags.csv");
+            }
+            catch (IOException)
+            {
+                Console.ForegroundColor = ConsoleColor.Red; 
+                Console.WriteLine("IO Error: 'IgnoreTags.csv' Se ha movido del directorio o modificado incorrectamente");
+                Console.ResetColor();
+                return;
+            }
+
             //Confirmar si el usuario quiere convertir el archivo
             Console.ResetColor();
-            Console.WriteLine("Estas seguro que deseas continuar? Si/No");
+            Console.Write("Estas seguro que deseas continuar? ");
+            
+            //Mostrar colores en Si/No
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.Write("Si");
+            Console.ForegroundColor = ConsoleColor.Gray;
+            Console.Write("/");
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Write("No\n");
+
             Console.ForegroundColor = ConsoleColor.Yellow;
             string userKey = Console.ReadLine();
             Console.ResetColor();
@@ -99,6 +146,8 @@ namespace DAT_1_Converter
             if (userKey == "N" || userKey == "n" || userKey == "No" || userKey == "NO")
             {
                 //En caso de lo contrario se cancela la conversion y se cierra el programa
+                Console.Clear();
+                strings.Title();
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("la conversion ha sido cancelada");
                 Console.ResetColor();
@@ -106,6 +155,10 @@ namespace DAT_1_Converter
             }
             if (userKey == "S" || userKey == "s" || userKey == "Si" || userKey == "SI")
             {
+                //Limpiar terminal
+                Console.Clear();
+                strings.Title();
+
                 //Guardar en memoria la hora en la que empieza a convertir el archivo
                 DateTime startTime = DateTime.Now;
                 
@@ -117,26 +170,8 @@ namespace DAT_1_Converter
                 //Guarda el nombre del archivo
                 outputFileName = fileName.Split('.');
                 string result = String.Empty;
-                
-                //Decide que metodo le interesa mas usar para aumentar el rendimiento y comienza la conversion
-                if (file.Length > 1000000) ArrayToStringHighFileMode(fileElements);
-                else
-                {
-                    result = ArrayToStringLowFileMode(fileElements);
-                    //Elimina las separaciones creadas anteriormente para evitar problemas con el espaciado
-                    result = strings.CleanSeparators(result);
-                    //Crear csv
-                    using (FileStream fileStream = File.Create(outputPath + outputFileName[0] + ".csv"))
-                    {
-                        Console.WriteLine("\ncsv creado correctamente\n");
 
-                        byte[] info = new UTF8Encoding(true).GetBytes(result);
-
-                        Console.WriteLine("Copiando informacion al csv...\n");
-
-                        fileStream.Write(info, 0, info.Length);
-                    }
-                }
+                ArrayToString(fileElements);
 
                 TimeSpan time = DateTime.Now.Subtract(startTime);
                 
@@ -151,74 +186,41 @@ namespace DAT_1_Converter
 
         }
 
-        //Array to string
-
-        public static string ArrayToStringLowFileMode(string[] file)
+        //Array to string (Convierte la array de elementos a una string que se acaba copiando al documento)
+        public static void ArrayToString(string[] file)
         {
-            int count = 0;
-            string result = "@mode edit, t\n@table pisnap\n@istr tag, time, value\n";
-            string[] fileArray = new string[file.Length];
-            for (int i = 0; i < file.Length - 1; i++)
-            {
-                //Porcentaje
-                Console.WriteLine("Dando formato a la informacion: " + MathF.Abs(i * 100 / fileElements.Length) + "%");
-                Console.Title = "DAT_1 CONVERTER - " + fileName + ": " + MathF.Abs(i * 100 / fileElements.Length) + "%";
-                if (count == 0) fileArray[i] = file[i] + ",";
-                if (count == 1) fileArray[i] = file[i] + " ";
-
-                //Si la hora tiene un formato distinto lo arregla
-                if (count == 2 && file[i].Length > 13)
-                {
-                    file[i] = file[i].Substring(0, 12) + "," + file[i].Substring(12, file[i].Length - 12);
-                    fileArray[i] = file[i] + ",";
-                    count = -1;
-                }
-                if (count == 2) fileArray[i] = file[i] + ",";
-
-                if (count == 3)
-                {
-                    fileArray[i] = file[i] + "\n";
-                    count = -1;
-                }
-                count++;
-            }
-            Console.WriteLine("Formato completado\n");
-            //Elimina la separacion ascii que tiene el tag
-            int e = 0;
-            Parallel.For(1, fileArray.Length - 1, i =>
-            {
-                Console.WriteLine("Finalizando archivo: " + MathF.Abs((e * 100 / fileArray.Length)) + "%");
-
-                char emptyChar = (char)0;
-                string[] endLine = new string[2];
-                if (fileArray[i].Contains(emptyChar)) endLine = fileArray[i].Split(emptyChar);
-
-                //Si el elemento tag esta correcto se copia a file
-                if (endLine[1] != null) fileArray[i] = endLine[1];
-                i++;
-                e++;
-            });
-
-            result = result + string.Join("", fileArray);
-            return result;
-        }
-        public static void ArrayToStringHighFileMode(string[] file)
-        {
+            //Obtener metodos de la clase strings
             Strings strings = new Strings();
+
+            List<string> result = new List<string>();
             string header = "@mode edit, t\n@table pisnap\n@istr tag, time, value\n";
-            string[] result = new string[file.Length];
+
             for (int i = 0; i < file.Length - 1; i++)
             {
                 //Porcentaje
+                strings.ClearCurrentConsoleLine();
                 Console.WriteLine("Dando formato a la informacion: " + MathF.Abs(i * 100 / fileElements.Length) + "%");
-                Console.Title = "DAT_1 CONVERTER - " + fileName + ": " + MathF.Abs(i * 100 / fileElements.Length) + "%";
-
-                result[i] = ArrayToStringSingleOperation(file[i], i);
+                Console.Title = "DAT_1 CONVERTER - " + fileName + " " + MathF.Abs(i * 100 / fileElements.Length) + "%";
+                
+                //Añadir los elementos a la lista
+                result.Add(ArrayToStringSingleOperation(file[i], i));
             }
-            Console.WriteLine("Formato completado\n");
+            Console.WriteLine("Formato completado");
 
             //Quitar el porcentaje del titulo mostrado anteriormente
             Console.Title = "DAT_1 CONVERTER - " + fileName;
+
+            //Eliminar los tags guardados en tagsToIgnore
+            Console.WriteLine(tagsToIgnore.Count);
+            for (int i = 0; i < tagsToIgnore.Count; i++)
+            {
+                //Console.WriteLine(tagsToIgnore[i]);
+                //Remove Tag, Date, Hour, Value
+                //result.RemoveAt(tagsToIgnore[i]);
+                //result.RemoveAt(tagsToIgnore[i] + 1);
+                //result.RemoveAt(tagsToIgnore[i] + 2);
+                //result.RemoveAt(tagsToIgnore[i] + 3);
+            }
 
             //Elimina las separaciones creadas anteriormente para evitar problemas con el espaciado
             string str = strings.CleanSeparators(string.Join("", result));
@@ -226,70 +228,68 @@ namespace DAT_1_Converter
             //Crear csv
             using (FileStream fileStream = File.Create(outputPath + outputFileName[0] + ".csv"))
             {
-                Console.WriteLine("\ncsv creado correctamente\n");
                 Console.WriteLine("Copiando informacion al csv...\n");
 
                 byte[] info = new UTF8Encoding(true).GetBytes(header + str);
 
                 fileStream.Write(info, 0, info.Length);
             }
+            strings.ClearCurrentConsoleLine();
             Console.WriteLine("Informacion copiada correctamente\n");
         }
-
-        static int e = 0;
         public static string ArrayToStringSingleOperation(string file, int i)
         {
+            //Obtener metodos de la clase strings
             Strings strings = new Strings();
 
             char emptyChar = (char)0;
             string result = String.Empty;
 
+            //TAG
             if (fileCount == 0 && i != 0) {
+                //Si no es un tag devuelve una excepcion
                 if(!file.Contains(emptyChar)){
                     Exception exp = new Exception("Error: tag expected in: " + file);
                     throw exp;
                 }
 
+                //Si esta en ignoredTags se guarda en una array para mas tarde remover las lineas
+                if(isIgnoredTag(file)) { tagsToIgnore.Add(i); }
+
+                //Borrar los caracteres ascii del tag
                 file = file.Remove(0, 5);
+                
                 result = file + ",";
-            }else if(fileCount == 0){result = file + ",";}
 
+            }else if(fileCount == 0){ result = file + ","; }
 
+            //FECHA
             if (fileCount == 1) result = file + " ";
 
-            //Si la hora tiene un formato distinto lo arregla
+            //HORA
             if (fileCount == 2 && file.Length > 13)
             {
+                //Si la hora tiene un formato distinto lo arregla
                 file = file.Substring(0, 12) + "," + file.Substring(12, file.Length - 12);
                 result = file + "\n";
                 fileCount = -1;
             }
             if (fileCount == 2) result =  file + ",";
 
-            //Si el final de linea no es correcto se corrige
+            //VALUE
             if(fileCount == 3 && (file.Contains(emptyChar) || file == "0" ))
             {
-                Console.BackgroundColor = ConsoleColor.Red;
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine(file + " Found in line: " + i/3);
-                Console.ResetColor();
-                
-                if(!file.Contains(emptyChar)){
-                    Exception exp = new Exception("Error: tag expected in: " + file);
-                    throw exp;
-                }
-
-                Console.WriteLine(file + ": Length = " + file.Length);
+                //Si el final de linea no es correcto se corrige
                 file = file.Remove(0, 5);
-                Console.WriteLine(file);
                 
                 result = "\n" + file + ",";
                 fileCount = 0;
-                e++;
             }
-            //Si es final de linea pasar a otra nueva
             else if (fileCount == 3)
             {
+                //Si es final de linea pasar a otra nueva
+
+                //Covertir de exponencial a decimal el value
                 file = strings.ExponentialToDecimal(file);
                 result = file + "\n";
                 fileCount = -1;
@@ -305,10 +305,36 @@ namespace DAT_1_Converter
             return result;
         }
         
+
+        //Check IgnoredTags
+        public static bool isIgnoredTag (string tag) {
+            //remove nml
+            tag = tag.Remove(0, 5); 
+            //Check if the tag is on the ignored list
+            for (int i = 1; i < ignoreTags.Length; i++)
+            { if(tag == ignoreTags[i]) return true; }
+            
+            return false;
+        }
     }
 
     public class Strings
-    {
+    {   
+        //Console methods
+        public void Title() {
+            Console.Title = "DAT_1 CONVERTER";
+            Console.BackgroundColor = ConsoleColor.Yellow;
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.WriteLine(" DAT_1 CONVERTER ".PadRight(Console.BufferWidth));
+            Console.ResetColor();
+        }
+        public void ClearCurrentConsoleLine()
+        {
+            Console.SetCursorPosition(0, Console.CursorTop - 1);
+            Console.Write(new string(' ', Console.BufferWidth));
+            Console.SetCursorPosition(0, Console.CursorTop - 1);
+        }
+        
         //String methods
         public string DeleteStartCharacter(string file)
         {
@@ -356,9 +382,11 @@ namespace DAT_1_Converter
         public string AddSeparators(string file)
         {
             Console.WriteLine("\nEjecutando operaciones menores...");
+            
+            ClearCurrentConsoleLine();
+            Console.WriteLine("Ejecutando operaciones menores...(1/3)");
             while (file.Contains("N "))
             {
-                Console.WriteLine("Ejecutando operaciones menores...(1/3)");
                 string changedPart = file.Substring(file.IndexOf("N ", 0), 3);
                 string partToChange = changedPart;
 
@@ -366,9 +394,11 @@ namespace DAT_1_Converter
 
                 file = file.Replace(partToChange, changedPart);
             }
+            
+            ClearCurrentConsoleLine();
+            Console.WriteLine("Ejecutando operaciones menores...(2/3)");
             while (file.Contains("NO "))
             {
-                Console.WriteLine("Ejecutando operaciones menores...(2/3)");
                 string changedPart = file.Substring(file.IndexOf("NO ", 0), 4);
                 string partToChange = changedPart;
 
@@ -376,9 +406,11 @@ namespace DAT_1_Converter
 
                 file = file.Replace(partToChange, changedPart);
             }
+            
+            ClearCurrentConsoleLine();
+            Console.WriteLine("Ejecutando operaciones menores...(3/3)");
             while (file.Contains("PRUEBA "))
             {
-                Console.WriteLine("Ejecutando operaciones menores...(3/3)");
                 string changedPart = file.Substring(file.IndexOf("PRUEBA ", 0), 8);
                 string partToChange = changedPart;
 
@@ -387,15 +419,14 @@ namespace DAT_1_Converter
                 file = file.Replace(partToChange, changedPart);
             }
 
-            Console.WriteLine("\ncompletadas\n");
+            Console.WriteLine("completadas\n\n");
             return file;
         }
         public string CleanSeparators(string file)
         {
-            Console.WriteLine("\nLimpiando el archivo...");
+            Console.WriteLine("\nLimpiando el archivo...(1/3)");
             while (file.Contains("N-"))
             {
-                Console.WriteLine("Limpiando el archivo...(1/3)");
                 string changedPart = file.Substring(file.IndexOf("N-", 0), 3);
                 string partToChange = changedPart;
 
@@ -403,9 +434,10 @@ namespace DAT_1_Converter
 
                 file = file.Replace(partToChange, changedPart);
             }
+            ClearCurrentConsoleLine();
+            Console.WriteLine("Limpiando el archivo...(2/3)");
             while (file.Contains("NO-"))
             {
-                Console.WriteLine("Limpiando el archivo...(2/3)");
                 string changedPart = file.Substring(file.IndexOf("NO-", 0), 4);
                 string partToChange = changedPart;
 
@@ -413,9 +445,10 @@ namespace DAT_1_Converter
 
                 file = file.Replace(partToChange, changedPart);
             }
+            ClearCurrentConsoleLine();
+            Console.WriteLine("Limpiando el archivo...(3/3)");
             while (file.Contains("PRUEBA-"))
             {
-                Console.WriteLine("Limpiando el archivo...(3/3)");
                 string changedPart = file.Substring(file.IndexOf("PRUEBA-", 0), 8);
                 string partToChange = changedPart;
 
@@ -423,7 +456,6 @@ namespace DAT_1_Converter
 
                 file = file.Replace(partToChange, changedPart);
             }
-
             Console.WriteLine("Limpiado\n");
 
             return file;
