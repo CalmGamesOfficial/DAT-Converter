@@ -1,4 +1,4 @@
-﻿//DAT1 Converter (Version 1.2) by Calm Games for more information https://github.com/CalmGamesOfficial
+﻿//DAT Converter (Version 1.3) by Calm Games for more information https://github.com/CalmGamesOfficial/DAT-Converter
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Globalization;
@@ -25,6 +25,7 @@ namespace DAT_1_Converter
         public static string filePath;
         public static string outputPath;
 
+        public static int fileLine = 4;
         public static string[] ignoreTags;
         public static List<int> tagsToIgnore = new List<int>();
 
@@ -46,10 +47,7 @@ namespace DAT_1_Converter
             
             //Si no existe see inicia un bucle hasta que encuentre un archivo
             while (!File.Exists(filePath))
-            {
-                strings.ClearCurrentConsoleLine(); strings.ClearCurrentConsoleLine();
-                strings.ClearCurrentConsoleLine(); strings.ClearCurrentConsoleLine();
-                
+            {               
                 Console.ResetColor();
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("No se ha encontrado el archivo especificado, por favor vuelva a introducirla:");
@@ -84,9 +82,6 @@ namespace DAT_1_Converter
             //Si no existe see inicia un bucle hasta que encuentre una directorio de salida
             while (!Directory.Exists(outputPath))
             {
-                strings.ClearCurrentConsoleLine(); strings.ClearCurrentConsoleLine();
-                strings.ClearCurrentConsoleLine(); strings.ClearCurrentConsoleLine();
-                
                 Console.ResetColor();
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("No se ha encontrado la ruta especificada, por favor vuelva a introducirla:");
@@ -155,9 +150,7 @@ namespace DAT_1_Converter
             }
             if (userKey == "S" || userKey == "s" || userKey == "Si" || userKey == "SI")
             {
-                //Limpiar terminal
-                Console.Clear();
-                strings.Title();
+                strings.ClearConsole();
 
                 //Guardar en memoria la hora en la que empieza a convertir el archivo
                 DateTime startTime = DateTime.Now;
@@ -175,9 +168,17 @@ namespace DAT_1_Converter
 
                 TimeSpan time = DateTime.Now.Subtract(startTime);
                 
+                strings.ClearConsole();
+
                 Console.Title = "DAT_1 CONVERTER";
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Conversion completa en " + time.Hours.ToString("00") + ":" + time.Minutes.ToString("00") + ":" + time.Seconds.ToString("00") + ", csv guardado en '" + outputPath + "'\n");
+                Console.WriteLine("\nConversion completa en " + time.Hours.ToString("00") + ":" + time.Minutes.ToString("00") + ":" + time.Seconds.ToString("00") + ", csv guardado en '" + outputPath + "'\n");
+
+                Console.ForegroundColor = ConsoleColor.Blue;
+                Console.Write("DAT Converter (Version 1.3) by Calm Games for more information: ");
+                Console.ForegroundColor =ConsoleColor.Cyan;
+                Console.Write("https://github.com/CalmGamesOfficial\n\n");
+                
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("Pulse Enter para salir...");
                 Console.ReadKey();
@@ -198,7 +199,7 @@ namespace DAT_1_Converter
             for (int i = 0; i < file.Length - 1; i++)
             {
                 //Porcentaje
-                strings.ClearCurrentConsoleLine();
+                if(i > 0) strings.ClearCurrentConsoleLine();
                 Console.WriteLine("Dando formato a la informacion: " + MathF.Abs(i * 100 / fileElements.Length) + "%");
                 Console.Title = "DAT_1 CONVERTER - " + fileName + " " + MathF.Abs(i * 100 / fileElements.Length) + "%";
                 
@@ -210,32 +211,56 @@ namespace DAT_1_Converter
             //Quitar el porcentaje del titulo mostrado anteriormente
             Console.Title = "DAT_1 CONVERTER - " + fileName;
 
-            //Eliminar los tags guardados en tagsToIgnore
-            Console.WriteLine(tagsToIgnore.Count);
-            for (int i = 0; i < tagsToIgnore.Count; i++)
-            {
-                //Console.WriteLine(tagsToIgnore[i]);
-                //Remove Tag, Date, Hour, Value
-                //result.RemoveAt(tagsToIgnore[i]);
-                //result.RemoveAt(tagsToIgnore[i] + 1);
-                //result.RemoveAt(tagsToIgnore[i] + 2);
-                //result.RemoveAt(tagsToIgnore[i] + 3);
-            }
-
             //Elimina las separaciones creadas anteriormente para evitar problemas con el espaciado
             string str = strings.CleanSeparators(string.Join("", result));
 
-            //Crear csv
-            using (FileStream fileStream = File.Create(outputPath + outputFileName[0] + ".csv"))
+            //Crear archivo de cache de datos
+            using (FileStream fileStream = File.Create("Data.cache"))
             {
-                Console.WriteLine("Copiando informacion al csv...\n");
+                Console.WriteLine("Copiando informacion al archivo de cache...\n");
 
                 byte[] info = new UTF8Encoding(true).GetBytes(header + str);
 
                 fileStream.Write(info, 0, info.Length);
             }
+
+            //Copiar datos de el cache al csv
+            string line = string.Empty;
+            int cacheFileLine = 0;
+            int lineMultiplier = 0;
+            bool ignoredLine = false;
+            FileStream streamCache = File.OpenRead("Data.cache");
+            FileStream streamFile = File.Create(outputPath + outputFileName[0] + ".csv");
+            using(StreamReader reader = new StreamReader(streamCache))
+            using(StreamWriter writer = new StreamWriter(streamFile, Encoding.UTF8))
+            {
+                //mientras el reader siga leyendo lineas se siguen escribiendo en el csv
+                while((line = reader.ReadLine()) != null)
+                {
+                    cacheFileLine++;
+                    
+                    //Se comprueba si la linea que se esta escribiendo tiene que ser ignorada
+                    for (int i = 0; i < tagsToIgnore.Count; i++)
+                    {if(cacheFileLine == (tagsToIgnore[i])) ignoredLine = true;}
+                    
+                    //Se escriben las lineas en el archivo
+                    if(!ignoredLine) {writer.WriteLine(line); } 
+                    else {ignoredLine = false; lineMultiplier++;}    
+                }
+                //Cerrar los archivos    
+                writer.Close();
+                reader.Close();
+                streamFile.Close();
+                streamCache.Close();
+            }
             strings.ClearCurrentConsoleLine();
-            Console.WriteLine("Informacion copiada correctamente\n");
+            Console.WriteLine("\nInformacion copiada correctamente\n");
+
+            //Por ultimo borramos el archivo de cache
+            Console.WriteLine("Borrando el cache...\n");
+            File.Delete("Data.cache");
+            strings.ClearCurrentConsoleLine();
+            Console.WriteLine("Borrado\n");
         }
         public static string ArrayToStringSingleOperation(string file, int i)
         {
@@ -249,12 +274,12 @@ namespace DAT_1_Converter
             if (fileCount == 0 && i != 0) {
                 //Si no es un tag devuelve una excepcion
                 if(!file.Contains(emptyChar)){
-                    Exception exp = new Exception("Error: tag expected in: " + file);
+                    Exception exp = new Exception("Error: tag expected in: " + file + "(Index: " + i + ")");
                     throw exp;
                 }
 
                 //Si esta en ignoredTags se guarda en una array para mas tarde remover las lineas
-                if(isIgnoredTag(file)) { tagsToIgnore.Add(i); }
+                if(isIgnoredTag(file)) tagsToIgnore.Add(fileLine);
 
                 //Borrar los caracteres ascii del tag
                 file = file.Remove(0, 5);
@@ -284,6 +309,7 @@ namespace DAT_1_Converter
                 
                 result = "\n" + file + ",";
                 fileCount = 0;
+                fileLine++;
             }
             else if (fileCount == 3)
             {
@@ -293,6 +319,7 @@ namespace DAT_1_Converter
                 file = strings.ExponentialToDecimal(file);
                 result = file + "\n";
                 fileCount = -1;
+                fileLine++;
             }
 
             //Si no se comprueba si es el ultimo de la lista y se elimina
@@ -305,14 +332,13 @@ namespace DAT_1_Converter
             return result;
         }
         
-
-        //Check IgnoredTags
+        //Comprueba que no se cuelen tags antiguos en el pyconfig
         public static bool isIgnoredTag (string tag) {
             //remove nml
             tag = tag.Remove(0, 5); 
             //Check if the tag is on the ignored list
             for (int i = 1; i < ignoreTags.Length; i++)
-            { if(tag == ignoreTags[i]) return true; }
+            { if(tag == ignoreTags[i]) return true;}
             
             return false;
         }
@@ -321,6 +347,7 @@ namespace DAT_1_Converter
     public class Strings
     {   
         //Console methods
+        public void ClearConsole() {Console.Clear(); Title();}
         public void Title() {
             Console.Title = "DAT_1 CONVERTER";
             Console.BackgroundColor = ConsoleColor.Yellow;
@@ -419,7 +446,7 @@ namespace DAT_1_Converter
                 file = file.Replace(partToChange, changedPart);
             }
 
-            Console.WriteLine("completadas\n\n");
+            Console.WriteLine("completadas\n");
             return file;
         }
         public string CleanSeparators(string file)
