@@ -1,4 +1,4 @@
-﻿//DAT Converter (Version 1.3) by Calm Games for more information https://github.com/CalmGamesOfficial/DAT-Converter
+﻿//DAT Converter (Version 1.4) by Calm Games for more information https://github.com/CalmGamesOfficial/DAT-Converter
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Globalization;
@@ -102,6 +102,8 @@ namespace DAT_1_Converter
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("IO Error: {0}", e.GetType().Name);
                 Console.ResetColor();
+                Console.WriteLine("Pulse Enter para salir...");
+                Console.ReadKey();
                 return;
             }
             Console.ForegroundColor = ConsoleColor.Green;
@@ -119,6 +121,8 @@ namespace DAT_1_Converter
                 Console.ForegroundColor = ConsoleColor.Red; 
                 Console.WriteLine("IO Error: 'IgnoreTags.csv' Se ha movido del directorio o modificado incorrectamente");
                 Console.ResetColor();
+                Console.WriteLine("Pulse Enter para salir...");
+                Console.ReadKey();
                 return;
             }
 
@@ -175,7 +179,7 @@ namespace DAT_1_Converter
                 Console.WriteLine("\nConversion completa en " + time.Hours.ToString("00") + ":" + time.Minutes.ToString("00") + ":" + time.Seconds.ToString("00") + ", csv guardado en '" + outputPath + "'\n");
 
                 Console.ForegroundColor = ConsoleColor.Blue;
-                Console.Write("DAT Converter (Version 1.3) by Calm Games for more information: ");
+                Console.Write("DAT Converter (Version 1.4) by Calm Games for more information: ");
                 Console.ForegroundColor =ConsoleColor.Cyan;
                 Console.Write("https://github.com/CalmGamesOfficial\n\n");
                 
@@ -274,7 +278,11 @@ namespace DAT_1_Converter
             if (fileCount == 0 && i != 0) {
                 //Si no es un tag devuelve una excepcion
                 if(!file.Contains(emptyChar)){
-                    Exception exp = new Exception("Error: tag expected in: " + file + "(Index: " + i + ")");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error: tag expected: " + file + " (en la linea: " + fileLine + " )");
+                    Console.WriteLine("Pulse Enter para salir...");
+                    Console.ReadKey();
+                    Exception exp = new Exception();
                     throw exp;
                 }
 
@@ -349,10 +357,10 @@ namespace DAT_1_Converter
         //Console methods
         public void ClearConsole() {Console.Clear(); Title();}
         public void Title() {
-            Console.Title = "DAT_1 CONVERTER";
+            Console.Title = "DAT CONVERTER";
             Console.BackgroundColor = ConsoleColor.Yellow;
             Console.ForegroundColor = ConsoleColor.Black;
-            Console.WriteLine(" DAT_1 CONVERTER ".PadRight(Console.BufferWidth));
+            Console.WriteLine(" DAT CONVERTER ".PadRight(Console.BufferWidth));
             Console.ResetColor();
         }
         public void ClearCurrentConsoleLine()
